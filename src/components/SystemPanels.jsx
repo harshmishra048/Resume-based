@@ -1,0 +1,56 @@
+import { useState, useEffect, useRef, useMemo } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
+import { useOS } from '../context/OSContext'
+import { apps, getApp } from '../data/apps'
+import { projects } from '../data/projects'
+import { profile, skills, experience } from '../data/profile'
+import Icon, { AppIcon } from './Icon'
+const menuMotion = { initial: { opacity: 0, y: 10 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: 10 }, transition: { duration: .15 } }
+function StartMenu({ searching }) {
+  const os = useOS(), [query, setQuery] = useState(''), [all, setAll] = useState(false), [index, setIndex] = useState(0), [power, setPower] = useState(false)
+  const input = useRef(null)
+  useEffect(() => { input.current?.focus() }, [])
+  const results = useMemo(() => {
+    if (!query.trim()) return []
+    const q = query.toLowerCase().trim(), matches = value => value.toLowerCase().includes(q)
+    return [
+      ...apps.filter(a => matches(a.name + ' ' + a.description)).map(a => ({ ...a, target: a.id, kind: 'Application' })),
+      ...projects.filter(p => matches(p.name + ' ' + p.tags.join(' ') + ' ' + p.description)).map(p => ({ id: p.id, name: p.name, icon: p.icon, color: 'blue', target: 'projects', data: p.id, kind: 'Project' })),
+      ...Object.entries(skills).flatMap(([category, items]) => items.filter(s => matches(s)).map(s => ({ id: s, name: s, icon: 'code', color: 'purple', target: 'skills', data: category, kind: category }))),
+      ...experience.filter(e => matches(e.company + ' ' + e.role + ' ' + e.description)).map(e => ({ id: e.company, name: e.company, icon: 'briefcase', color: 'orange', target: 'experience', kind: 'Experience' })),
+      ...(['help','whoami','neofetch','date','theme','sudo hire-me'].filter(c => matches(c)).map(c => ({ id: c, name: c, icon: 'terminal', color: 'dark', target: 'terminal', kind: 'Terminal command' }))),
+      ...(matches(Object.values(profile.education).join(' ')) ? [{ id: 'university', name: profile.education.university, icon: 'education', color: 'teal', target: 'education', kind: 'Education' }] : [])
+    ].slice(0, 24)
+  }, [query])
+  const launch = r => os.openApp(r.target, r.data)
+  return <motion.section {...menuMotion} className="system-panel start-menu" aria-label={searching ? 'Search' : 'Start menu'}>
+    <div className="start-search"><Icon name="search"/><input ref={input} aria-label="Search portfolio" placeholder="Search apps, projects, skills and more" value={query} onChange={e => { setQuery(e.target.value); setIndex(0) }} onKeyDown={e => { if (e.key === 'ArrowDown') { e.preventDefault(); setIndex(i => Math.min(i + 1, results.length - 1)) } if (e.key === 'ArrowUp') { e.preventDefault(); setIndex(i => Math.max(i - 1, 0)) } if (e.key === 'Enter' && results[index]) launch(results[index]) }}/><kbd>esc</kbd></div>
+    {query ? <div className="search-results"><div className="section-label">{results.length ? 'BEST MATCHES' : 'NO RESULTS'}</div>{results.map((r, i) => <button key={`${r.kind}-${r.id}`} className={`search-result ${index === i ? 'selected' : ''}`} onClick={() => launch(r)}><AppIcon app={r} size={34}/><span><b>{r.name}</b><small>{r.kind}</small></span><Icon name="arrow" size={17}/></button>)}{!results.length && <p className="muted">Try a project name, “React”, or “resume”.</p>}</div> : <><div className="start-section-heading"><h3>{all ? 'All applications' : 'Pinned'}</h3><button className="button small" onClick={() => setAll(!all)}>{all ? 'Pinned apps' : 'All apps'} <Icon name="right" size={14}/></button></div><div className="pinned-grid">{apps.slice(0, all ? apps.length : 12).map(a => <button key={a.id} onClick={() => os.openApp(a.id)}><AppIcon app={a} size={37}/><span>{a.name}</span></button>)}</div><div className="start-section-heading"><h3>Recently opened</h3><span className="muted">Pick up where you left off</span></div><div className="recent-apps">{os.recent.slice(0, 4).map(id => <button key={id} onClick={() => os.openApp(id)}><AppIcon app={getApp(id)} size={32}/><span><b>{getApp(id).name}</b><small>{getApp(id).description}</small></span></button>)}</div></>}
+    <footer className="start-footer"><button onClick={() => os.openApp('about')}><span className="mini-avatar">HM</span><span>{profile.name}</span></button><div className="power-area">{power && <div className="power-menu"><button onClick={() => { os.setLocked(true); os.setOverlay(null) }}>Lock workspace</button><button onClick={() => { os.setBooting(true); os.setOverlay(null) }}>Restart intro</button></div>}<button aria-label="Power options" title="Power options" onClick={() => setPower(!power)}><Icon name="power"/></button></div></footer>
+  </motion.section>
+}
+function QuickSettings() {
+  const { preferences: p, updatePreferences: update, openApp } = useOS()
+  const [bluetooth, setBluetooth] = useState(false), [wifi, setWifi] = useState(true)
+  const tiles = [{ icon: 'wifi', name: 'Wi-Fi demo', active: wifi, action: () => setWifi(!wifi) }, { icon: 'bluetooth', name: 'Bluetooth demo', active: bluetooth, action: () => setBluetooth(!bluetooth) }, { icon: 'moon', name: 'Focus mode', active: p.focus, action: () => update({ focus: !p.focus }) }, { icon: 'design', name: 'Dark mode', active: p.theme === 'dark', action: () => update({ theme: p.theme === 'dark' ? 'light' : 'dark' }) }, { icon: 'volume', name: 'UI sounds', active: p.sound, action: () => update({ sound: !p.sound }) }, { icon: 'accessibility', name: 'Less motion', active: p.motion !== 'full', action: () => update({ motion: p.motion === 'full' ? 'reduced' : 'full' }) }]
+  return <motion.section {...menuMotion} className="system-panel quick-panel" aria-label="Quick settings"><h3>Make yourself comfortable</h3><p className="muted">Your workspace, your way.</p><div className="quick-tiles">{tiles.map(t => <button key={t.name} onClick={t.action} aria-pressed={t.active}><span className={t.active ? 'enabled' : ''}><Icon name={t.icon} size={23}/></span>{t.name}</button>)}</div><label className="quick-slider"><Icon name="sun"/><input aria-label="Workspace brightness" type="range" min="45" max="100" value={p.brightness} onChange={e => update({ brightness: +e.target.value })}/><span>{p.brightness}%</span></label><label className="quick-slider"><Icon name="volume"/><input aria-label="UI sound volume" type="range" min="0" max="100" value={p.volume} onChange={e => update({ volume: +e.target.value })}/><span>{p.volume}%</span></label><p className="simulation-note">Wi-Fi and Bluetooth are visual simulations. Sliders only control this portfolio.</p><footer><span><span className="status-dot"/>{navigator.onLine ? 'Browser online' : 'Browser offline'}</span><button aria-label="Open settings" onClick={() => openApp('settings')}><Icon name="settings"/></button></footer></motion.section>
+}
+function NotificationCenter() {
+  const os = useOS(), [monthOffset, setMonthOffset] = useState(0), today = new Date()
+  const month = new Date(today.getFullYear(), today.getMonth() + monthOffset, 1), count = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate()
+  return <motion.section {...menuMotion} className="system-panel notification-panel" aria-label="Notification center"><header><h3>Notifications</h3><button className="text-button" onClick={() => os.setNotifications([])}>Clear all</button></header><div className="notification-list">{os.notifications.map(n => <article key={n.id}><Icon name={n.icon}/><div><b>{n.title}</b><p>{n.message}</p><small>{new Date(n.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small></div><button aria-label={`Dismiss ${n.title}`} onClick={() => os.setNotifications(ns => ns.filter(x => x.id !== n.id))}><Icon name="close" size={16}/></button></article>)}{!os.notifications.length && <p className="muted">You're all caught up. A little room to focus.</p>}</div><div className="calendar"><header><h3>{month.toLocaleDateString([], { month: 'long', year: 'numeric' })}</h3><button aria-label="Previous month" onClick={() => setMonthOffset(o => o - 1)}><Icon name="left"/></button><button aria-label="Next month" onClick={() => setMonthOffset(o => o + 1)}><Icon name="right"/></button></header><div className="calendar-grid">{['S','M','T','W','T','F','S'].map((d,i) => <span className="day-label" key={i}>{d}</span>)}{Array.from({ length: month.getDay() }, (_,i) => <span key={'blank'+i}/>)}{Array.from({ length: count }, (_, i) => <span key={i} className={monthOffset === 0 && today.getDate() === i + 1 ? 'today' : ''}>{i + 1}</span>)}</div><button className="text-button" onClick={() => setMonthOffset(0)}>Back to today</button></div></motion.section>
+}
+export default function SystemPanels() {
+  const os = useOS(), container = useRef(null)
+  useEffect(() => {
+    if (!os.overlay && !os.contextMenu) return
+    const before = document.activeElement
+    const trap = e => { if (e.key !== 'Tab') return; const nodes = [...(container.current?.querySelectorAll('.system-panel button,.system-panel input,.context-menu button') || [])].filter(n => !n.disabled); if (!nodes.length) return; const first = nodes[0], last = nodes[nodes.length - 1]; if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus() } else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() } }
+    document.addEventListener('keydown', trap); return () => { document.removeEventListener('keydown', trap); before?.focus?.() }
+  }, [os.overlay, os.contextMenu])
+  return <div ref={container}>
+    {(os.overlay || os.contextMenu) && <div className="overlay-dismiss" onPointerDown={() => { os.setOverlay(null); os.setContextMenu(null) }}/>}<AnimatePresence>{(os.overlay === 'start' || os.overlay === 'search') && <StartMenu key={os.overlay} searching={os.overlay === 'search'}/>} {os.overlay === 'quick' && <QuickSettings/>}{os.overlay === 'notifications' && <NotificationCenter/>}</AnimatePresence>
+    {os.contextMenu && <section className="context-menu" style={{ left: os.contextMenu.x, top: os.contextMenu.y }} aria-label="Desktop context menu">{os.contextMenu.app && <button onClick={() => os.openApp(os.contextMenu.app)}><Icon name="external"/>Open {getApp(os.contextMenu.app).name}</button>}<button onClick={() => { os.showDesktop(); os.setContextMenu(null) }}><Icon name="computer"/>Show desktop</button><button onClick={() => { os.updatePreferences({ showIcons: !os.preferences.showIcons }); os.setContextMenu(null) }}><Icon name="grid"/>{os.preferences.showIcons ? 'Hide' : 'Show'} desktop icons</button><hr/><button onClick={() => os.openApp('settings', 'personalization')}><Icon name="design"/>Personalize</button><button onClick={() => os.openApp('settings', 'system')}><Icon name="computer"/>Display settings</button><button onClick={() => os.openApp('tasks')}><Icon name="activity"/>Task Manager</button></section>}
+    <AnimatePresence>{os.toast && !os.overlay && <motion.aside {...menuMotion} className="toast" role="status"><span className="toast-icon"><Icon name={os.toast.icon}/></span><div><b>{os.toast.title}</b><p>{os.toast.message}</p></div><button aria-label="Dismiss notification" onClick={() => os.setToast(null)}><Icon name="close" size={17}/></button></motion.aside>}</AnimatePresence>
+  </div>
+}
