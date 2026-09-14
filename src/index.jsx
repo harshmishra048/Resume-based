@@ -1,7 +1,9 @@
 import { Hono } from 'hono'
-import { serveStatic } from 'hono/cloudflare-workers'
+
 const app = new Hono()
-app.use('/static/*', serveStatic({ root: './public' }))
+
 app.get('/', (c) => c.html(`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><meta name="theme-color" content="#123c75"/><meta name="description" content="Step inside harshOS. Explore Harsh Mishra's work in full-stack development, AI and automation through an interactive desktop portfolio."/><meta property="og:title" content="Harsh Mishra — harshOS"/><meta property="og:description" content="A developer's workspace. A different kind of portfolio. Full-stack development, AI & automation."/><meta property="og:type" content="website"/><title>Harsh Mishra — harshOS</title><link rel="icon" type="image/svg+xml" href="/static/favicon.svg"/><link rel="stylesheet" href="/static/ui/assets/main.css"/><link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;450;500;550;600;650;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/></head><body><div id="root"></div><noscript><main><h1>Harsh Mishra — Full Stack Developer</h1><p>Computer Science Engineering student at A.K.S. University. MERN stack, AI & automation, SEO & web development.</p><h2>Projects</h2><p>Medample, LegacySphere, SURI, Face Expression Recognition System.</p><a href="/static/Harsh_Resume.pdf">Download resume</a><a href="mailto:mishraharsh4353@gmail.com">Contact Harsh</a><p>Enable JavaScript to explore the interactive portfolio desktop.</p></main></noscript><script type="module" src="/static/ui/app.js"></script></body></html>`))
+
 app.get('/api/health', (c) => c.json({ status: 'ok', name: 'harshOS' }))
+
 export default app
